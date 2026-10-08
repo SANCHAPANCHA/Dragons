@@ -20,10 +20,17 @@
     SPAWN_AHEAD: 104,
 
     // Speed / difficulty
-    START_SPEED: 17,
-    MAX_SPEED_ADD: 27,
-    SPEED_RAMP: 2200,      // metres to approach max speed
-    DIFFICULTY_RAMP: 2600, // metres to reach difficulty 1
+    // speed = START + distance curve + per-zone bonus + score bonus, capped at MAX_SPEED
+    START_SPEED: 19,
+    MAX_SPEED_ADD: 20,     // distance part (approached asymptotically)
+    SPEED_RAMP: 2500,      // metres to approach the distance part
+    ZONE_SPEED: 1.6,       // added each time a new zone is entered (eased in)
+    ZONE_EASE: 90,         // metres over which a zone bonus ramps in
+    SCORE_SPEED: 1.5,      // * log2(1 + score / SCORE_UNIT)
+    SCORE_UNIT: 2000,
+    SCORE_SPEED_MAX: 8,
+    MAX_SPEED: 58,
+    DIFFICULTY_RAMP: 2000, // metres to reach difficulty 1
     BOOST_MULT: 1.75,
     JET_PERIOD: 2.1,       // flame jet cycle (s)
     JET_ON: 0.85,          // seconds of each cycle the jet is burning

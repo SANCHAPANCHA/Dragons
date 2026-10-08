@@ -71,9 +71,13 @@
       const ice = zone === 'frost';
       const inferno = zone === 'inferno';
       return U.weighted([
-        { v: 'single', w: 3 - 2.3 * d },
-        { v: 'double', w: d > 0.03 ? 1.2 + 2 * d : 0 },
-        { v: 'triple', w: d > 0.18 ? 0.6 + 2.2 * d : 0 },
+        { v: 'single', w: Math.max(0.3, 2.4 - 2.6 * d) },
+        { v: 'double', w: d > 0.02 ? 1.4 + 2 * d : 0.4 },
+        { v: 'triple', w: d > 0.12 ? 0.8 + 2.4 * d : 0 },
+        { v: 'slalom', w: d > 0.1 ? 0.6 + 1.4 * d : 0 },
+        { v: 'stagger', w: d > 0.08 ? 0.7 + 1.5 * d : 0 },
+        { v: 'gauntlet', w: d > 0.15 ? 0.5 + 1.2 * d : 0 },
+        { v: 'shower', w: (hot && d > 0.1) || d > 0.45 ? (0.4 + d) * (inferno ? 2 : hot ? 1.3 : 0.6) : 0 },
         { v: 'jumpRow', w: d > 0.06 ? 0.8 : 0 },
         { v: 'slideRow', w: d > 0.07 ? 0.8 * (ice ? 1.8 : 1) : 0 },
         { v: 'spikeField', w: d > 0.04 ? 0.9 + d : 0 },
@@ -97,12 +101,15 @@
       let pattern = this.choosePattern(d, zone);
       if (pattern === 'roller' && this.lastPattern === 'roller') pattern = 'single';
       if (pattern === this.lastPattern && pattern !== 'single' && pattern !== 'double' && U.chance(0.6)) pattern = 'double';
+      if (pattern === 'shower' && !hot && d < 0.45) pattern = 'double';
       if (pattern === 'roller') this.nextWz += 14; // room for the trap to roll into
       const R = this.nextWz;
       const prevTrailEnd = this.prevRowEnd === undefined ? R - 20 : this.prevRowEnd;
 
       const lanes = [null, null, null];
       const wide = []; // multi-lane obstacles: {type, from, to}
+      const extra = []; // follow-up obstacles of multi-row patterns: {type, lane, off}
+      const freePath = []; // [lane, off] waypoints for the egg trail of multi-row patterns
       const gapType = hot ? 'lava' : 'gap';
       const lowType = () => U.weighted([
         { v: 'barrier', w: 1.2 }, { v: 'spikes', w: d > 0.02 ? 1.4 : 0 }, { v: gapType, w: d > 0.08 ? 0.8 : 0 }
@@ -209,6 +216,61 @@
           rowLen = 1.8;
           break;
         }
+        case 'slalom': {
+          // 3-5 rows, the free lane shifts by one each row
+          const n = U.randInt(3, d > 0.5 ? 5 : 4);
+          const off = speed * 0.5 + 5;
+          let free = U.randInt(0, 2);
+          for (let k = 0; k < n; k++) {
+            for (let i = 0; i < 3; i++) {
+              if (i === free) continue;
+              const t = U.chance(0.75) ? blockType() : 'crate';
+              if (k === 0) lanes[i] = t; else extra.push({ type: t, lane: i, off: k * off });
+            }
+            freePath.push([free, k * off]);
+            free = free === 0 ? 1 : free === 2 ? 1 : (U.chance(0.5) ? 0 : 2);
+          }
+          break;
+        }
+        case 'stagger': {
+          // two close rows whose open lanes are neighbours
+          const a = U.randInt(0, 2);
+          const bLane = a === 1 ? (U.chance(0.5) ? 0 : 2) : 1;
+          const off = speed * 0.55 + 5;
+          for (let i = 0; i < 3; i++) if (i !== a) lanes[i] = blockType();
+          if (U.chance(0.4 + d * 0.4)) lanes[a] = passType();
+          for (let i = 0; i < 3; i++) if (i !== bLane) extra.push({ type: U.chance(0.7) ? blockType() : 'crate', lane: i, off });
+          freePath.push([a, 0], [bLane, off]);
+          break;
+        }
+        case 'gauntlet': {
+          // jump then slide (or slide then jump) in the same lane, everything else blocked
+          const l = U.randInt(0, 2);
+          const jumpFirst = U.chance(0.5);
+          const off = speed * (jumpFirst ? 0.85 : 0.6) + 5;
+          lanes[l] = jumpFirst ? U.pick(['barrier', 'spikes', 'column']) : highType();
+          extra.push({ type: jumpFirst ? highType() : U.pick(['barrier', 'spikes']), lane: l, off });
+          for (let i = 0; i < 3; i++) {
+            if (i === l) continue;
+            lanes[i] = blockType();
+            extra.push({ type: 'crate', lane: i, off });
+          }
+          freePath.push([l, 0], [l, off]);
+          break;
+        }
+        case 'shower': {
+          // meteors raining down one after another in shifting lanes
+          const n = U.randInt(3, 5);
+          const off = speed * 0.4 + 4;
+          let last = -1;
+          for (let k = 0; k < n; k++) {
+            let l = U.randInt(0, 2);
+            if (l === last) l = (l + 1) % 3;
+            last = l;
+            if (k === 0) lanes[l] = 'meteor'; else extra.push({ type: 'meteor', lane: l, off: k * off });
+          }
+          break;
+        }
         case 'eggRun':
         default:
           break;
@@ -235,6 +297,10 @@
         if (t === 'gap' || t === 'lava') ob.len = U.clamp(3.4 + speed * 0.06, 3.6, 5.6);
         rowLen = Math.max(rowLen, ob.len);
       }
+      for (const x of extra) {
+        const ob = E.addObstacle(x.type, LANES[x.lane], R + x.off);
+        rowLen = Math.max(rowLen, x.off + ob.len);
+      }
 
       // Pick the lane the egg trail will guide the player through.
       const candidates = [];
@@ -242,7 +308,17 @@
       if (!candidates.length) for (let i = 0; i < 3; i++) if (passable(lanes[i])) candidates.push(i);
       let lane = candidates.indexOf(this.trailLane) >= 0 && U.chance(0.55) ? this.trailLane : U.pick(candidates);
 
-      if (pattern === 'eggRun') {
+      if (freePath.length) {
+        // eggs guide the way through multi-row patterns
+        this.trail(freePath[0][0], Math.max(prevTrailEnd + 4, R - 18), R - 5);
+        for (let k = 0; k < freePath.length; k++) {
+          const [fl, fo] = freePath[k];
+          const t = k === 0 ? lanes[fl] : (extra.find((x) => x.lane === fl && x.off === fo) || {}).type;
+          if (JUMP.has(t)) this.arc(fl, R + fo + 0.4, speed, false);
+          else if (!t) E.addEgg(this.eggType(), LANES[fl], 0.35, R + fo + 0.5);
+        }
+        lane = freePath[freePath.length - 1][0];
+      } else if (pattern === 'eggRun') {
         // zig-zag trail rewarding lane changes
         let l = this.trailLane;
         for (let z = prevTrailEnd + 4; z < R + 20; z += 2.6) {
@@ -268,7 +344,7 @@
       this.trailLane = lane;
 
       // Power-ups between rows, placed on the safe lane before the obstacle.
-      if (R > this.nextPowerWz && pattern !== 'roller') {
+      if (R > this.nextPowerWz && pattern !== 'roller' && !extra.length) {
         const type = this.pickPower(game);
         const pz = R - Math.max(9, speed * 0.5);
         for (const e of E.list) if (e.cat === 'egg' && Math.abs(e.wz - pz) < 1.6 && Math.abs(e.x - LANES[lane]) < 0.5) e.dead = true;
@@ -276,7 +352,7 @@
         this.nextPowerWz = R + U.rand(240, 420);
       }
 
-      const spacing = speed * U.lerp(1.08, 0.6, d) + 7;
+      const spacing = speed * U.lerp(0.95, 0.5, d) + 6;
       this.prevRowEnd = R + rowLen;
       this.nextWz = R + rowLen + spacing + this.extraGap + (pattern === 'roller' ? 10 : 0);
       this.extraGap = 0;

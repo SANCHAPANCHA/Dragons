@@ -91,6 +91,14 @@
     idAt(dist) {
       return ZONES[zoneIndexLocal(local(dist))].id;
     },
+    /** Zones entered so far (fractional while a new zone eases in). */
+    stepsAt(dist, ease) {
+      const loop = Math.floor(Math.max(0, dist) / CYCLE);
+      const l = local(Math.max(0, dist));
+      const i = zoneIndexLocal(l);
+      const frac = U.clamp((l - ZONES[i].start) / ease, 0, 1);
+      return Math.max(0, loop * ZONES.length + i - 1 + frac);
+    },
     loopAt(dist) {
       return Math.floor(Math.max(0, dist) / CYCLE);
     }

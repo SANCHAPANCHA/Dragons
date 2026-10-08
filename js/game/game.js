@@ -69,8 +69,15 @@
       this.vignette = v;
     },
 
+    /** Gradual speed-up: distance + zones entered + score so far. */
     baseSpeedAt(d) {
-      return C.START_SPEED + C.MAX_SPEED_ADD * (1 - Math.exp(-Math.max(0, d) / C.SPEED_RAMP));
+      d = Math.max(0, d);
+      const score = this.score ? this.score.score : 0;
+      const v = C.START_SPEED
+        + C.MAX_SPEED_ADD * (1 - Math.exp(-d / C.SPEED_RAMP))
+        + C.ZONE_SPEED * ER.Zones.stepsAt(d, C.ZONE_EASE)
+        + Math.min(C.SCORE_SPEED_MAX, C.SCORE_SPEED * Math.log2(1 + score / C.SCORE_UNIT));
+      return Math.min(C.MAX_SPEED, v);
     },
 
     /* ---------------- lifecycle ---------------- */
@@ -346,7 +353,8 @@
           }
         } else if (e.type === 'meteor' && !e.landed && e.smashed <= 0) {
           const z = e.wz - this.dist;
-          if (!e.falling && z < 36) { e.falling = true; ER.Audio.play('whoosh'); }
+          // drop early enough to land well before the dragon, whatever the speed
+          if (!e.falling && z < 14 + this.speed * 0.75) { e.falling = true; ER.Audio.play('whoosh'); }
           if (e.falling) {
             e.y -= 24 * dt;
             if (Math.random() < dt * 40) ER.Particles.spawn({ x: e.x + U.rand(-0.3, 0.3), y: e.y + 0.5, z: z + 0.7, vx: U.rand(-0.5, 0.5), vy: U.rand(0, 1.5), life: 0.5, size: 0.14, col: U.chance(0.5) ? 2 : 0, g: -0.3 });
@@ -369,7 +377,7 @@
         if (zi !== this.zoneIndex) {
           this.zoneIndex = zi;
           const loop = ER.Zones.loopAt(this.dist);
-          ER.UI.zoneBanner(ER.Zones.list[zi].name, 'ZONE ' + (zi + 1) + (loop > 0 ? ' · LOOP ' + (loop + 1) : ''));
+          ER.UI.zoneBanner(ER.Zones.list[zi].name, 'ZONE ' + (zi + 1) + (loop > 0 ? ' · LOOP ' + (loop + 1) : '') + ' · SPEED UP');
           ER.Audio.play('zone');
         }
         if (this.score.distance >= this.nextMilestone) {

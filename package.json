@@ -1,0 +1,10 @@
+{
+  "name": "egg-run",
+  "version": "1.0.0",
+  "description": "EGG RUN — a dark-fantasy 3-lane endless runner built with HTML, CSS, JavaScript and Canvas.",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "UNLICENSED"
+}

@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0b0604">
+  <meta name="description" content="EGG RUN — a dark-fantasy 3-lane endless runner. How far can you run?">
+  <title>EGG RUN — How far can you run?</title>
+  <link rel="icon" href="assets/ui/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="game" aria-label="EGG RUN game"></canvas>
+
+    <!-- ============ HUD ============ -->
+    <div id="hud" class="hud">
+      <div class="hud-left">
+        <button id="btn-pause" class="icon-btn" data-action="pause-btn" aria-label="Pause"><span></span><span></span></button>
+        <div class="hud-stats">
+          <div class="stat"><span class="lbl">Score</span><span class="val" id="hud-score">0</span></div>
+          <div class="stat"><span class="lbl">Distance</span><span class="val" id="hud-dist">0 m</span></div>
+          <div class="stat"><span class="lbl">Eggs</span><span class="val"><img class="egg-ico" alt=""><span id="hud-eggs">0</span></span></div>
+        </div>
+        <div class="combo" id="hud-combo">
+          <svg viewBox="0 0 100 100" aria-hidden="true">
+            <circle class="ring-bg" cx="50" cy="50" r="45"></circle>
+            <circle class="ring" id="hud-combo-ring" cx="50" cy="50" r="45"></circle>
+          </svg>
+          <span class="combo-x" id="hud-combo-x">x1</span>
+          <span class="combo-lbl">Combo</span>
+        </div>
+      </div>
+      <div class="hud-right">
+        <div class="best"><span class="lbl">Best</span><span class="val" id="hud-best">0</span></div>
+        <div class="powers" id="hud-powers"></div>
+      </div>
+      <div class="zone-banner" id="zone-banner"><small id="zone-sub">ZONE 1</small><strong id="zone-name">Ancient Temple</strong></div>
+      <div class="toast" id="toast"></div>
+      <div class="combo-pop" id="combo-pop"></div>
+      <div class="touch-hint" id="touch-hint">Swipe ← → to change lane · ↑ jump · ↓ slide</div>
+    </div>
+
+    <!-- ============ MAIN MENU ============ -->
+    <section id="screen-menu" class="screen menu">
+      <div class="menu-col">
+        <canvas id="menu-dragon" class="dragon-portrait"></canvas>
+        <h1 class="title">EGG RUN</h1>
+        <p class="subtitle">How far can you run?</p>
+        <nav class="menu-buttons">
+          <button class="btn btn-primary" data-action="play"><span class="flame"></span>Play</button>
+          <button class="btn" data-action="skins">Dragon Skins</button>
+          <button class="btn" data-action="leaderboard">Leaderboard</button>
+          <button class="btn" data-action="howto">How to Play</button>
+          <button class="btn" data-action="settings">Settings</button>
+        </nav>
+        <div class="menu-best">Best score <b id="menu-best">0</b></div>
+      </div>
+      <div class="menu-keys">A/D or ←/→ move · Space/↑ jump · ↓ slide · Esc pause</div>
+    </section>
+
+    <!-- ============ PAUSE ============ -->
+    <section id="screen-pause" class="screen overlay">
+      <div class="panel ornate narrow">
+        <h2>Paused</h2>
+        <div class="stack">
+          <button class="btn btn-primary" data-action="resume">Resume</button>
+          <button class="btn" data-action="restart">Restart</button>
+          <button class="btn" data-action="settings">Settings</button>
+          <button class="btn" data-action="quit">Quit</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ GAME OVER ============ -->
+    <section id="screen-over" class="screen overlay">
+      <div class="panel ornate over-panel">
+        <h2>Game Over</h2>
+        <div class="new-best" id="over-newbest">✦ New Best Score ✦</div>
+        <div class="over-body">
+          <canvas id="over-dragon" class="dragon-portrait small"></canvas>
+          <dl class="results">
+            <dt>Score</dt><dd id="over-score">0</dd>
+            <dt>Eggs</dt><dd id="over-eggs">0</dd>
+            <dt>Distance</dt><dd id="over-dist">0 m</dd>
+            <dt>Best Combo</dt><dd id="over-combo">x1</dd>
+            <dt>Best Score</dt><dd id="over-best">0</dd>
+            <dt>Global Rank</dt><dd id="over-rank">—</dd>
+            <dt>Reached</dt><dd id="over-zone" class="zone-dd">—</dd>
+          </dl>
+        </div>
+        <label class="name-field"><span>Your name</span><input id="over-name" maxlength="16" autocomplete="off" spellcheck="false"></label>
+        <div class="stack">
+          <button class="btn btn-primary" data-action="restart">Play Again</button>
+          <div class="row">
+            <button class="btn" data-action="leaderboard">Leaderboard</button>
+            <button class="btn" data-action="share">Share on X</button>
+          </div>
+          <button class="link-btn" data-action="menu">Main Menu</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============ LEADERBOARD ============ -->
+    <section id="screen-leaderboard" class="screen overlay modal">
+      <div class="panel ornate lb-panel">
+        <button class="close" data-action="back" aria-label="Close">×</button>
+        <h2>Leaderboard</h2>
+        <div class="tabs" role="tablist">
+          <button class="tab active" data-tab="global" role="tab">Global</button>
+          <button class="tab" data-tab="weekly" role="tab">Weekly</button>
+          <button class="tab" data-tab="me" role="tab">My Score</button>
+        </div>
+        <div class="lb-head"><span>#</span><span>Player</span><span>Score</span><span>Distance</span></div>
+        <ol class="lb-list" id="lb-list"></ol>
+      </div>
+    </section>
+
+    <!-- ============ SKINS ============ -->
+    <section id="screen-skins" class="screen overlay modal">
+      <div class="panel ornate skins-panel">
+        <button class="close" data-action="back" aria-label="Close">×</button>
+        <h2>Dragon Skins</h2>
+        <div class="skins-grid" id="skins-grid"></div>
+        <p class="ht-note">Same dragon, ten colour schemes. Your choice is saved on this device.</p>
+      </div>
+    </section>
+
+    <!-- ============ HOW TO PLAY ============ -->
+    <section id="screen-howto" class="screen overlay modal">
+      <div class="panel ornate howto-panel">
+        <button class="close" data-action="back" aria-label="Close">×</button>
+        <h2>How to Play</h2>
+        <div class="controls-grid">
+          <div class="ctl"><kbd>A</kbd><kbd>←</kbd><span>Move left</span><small>Swipe left</small></div>
+          <div class="ctl"><kbd>D</kbd><kbd>→</kbd><span>Move right</span><small>Swipe right</small></div>
+          <div class="ctl"><kbd>Space</kbd><kbd>↑</kbd><span>Jump</span><small>Swipe up</small></div>
+          <div class="ctl"><kbd>↓</kbd><span>Slide</span><small>Swipe down</small></div>
+        </div>
+        <p class="ht-note">Collect eggs in quick succession to build your <b>combo</b> multiplier. Tap the left/right side of the screen to change lane, the middle to jump. Press <kbd>Esc</kbd> to pause.</p>
+        <h3>Collectibles &amp; Power-ups</h3>
+        <div class="ht-grid" id="howto-items"></div>
+        <h3>Obstacles</h3>
+        <div class="ht-grid" id="howto-obstacles"></div>
+        <p class="ht-note">Survive to travel through the <b>Ancient Temple</b>, <b>Frozen Temple</b>, <b>Lava Temple</b>, the <b>Ancient Vault</b> and the <b>Inferno Depths</b>.</p>
+      </div>
+    </section>
+
+    <!-- ============ SETTINGS ============ -->
+    <section id="screen-settings" class="screen overlay modal">
+      <div class="panel ornate narrow">
+        <button class="close" data-action="back" aria-label="Close">×</button>
+        <h2>Settings</h2>
+        <div class="settings">
+          <div class="set-row"><span>Music</span><button class="toggle" data-setting="music">On</button></div>
+          <div class="set-row"><span>Sound Effects</span><button class="toggle" data-setting="sfx">On</button></div>
+          <div class="set-row"><span>Screen Shake</span><button class="toggle" data-setting="shake">On</button></div>
+          <div class="set-row"><span>Graphics</span><button class="toggle" data-setting="quality">High</button></div>
+          <label class="set-row name"><span>Player Name</span><input id="set-name" maxlength="16" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <button class="link-btn danger" data-action="reset-data">Reset progress</button>
+      </div>
+    </section>
+
+    <!-- ============ SHARE ============ -->
+    <section id="screen-share" class="screen overlay modal">
+      <div class="panel ornate share-panel">
+        <button class="close" data-action="back" aria-label="Close">×</button>
+        <h2>Share Score</h2>
+        <img id="share-img" class="share-img" alt="Your EGG RUN score card">
+        <div id="share-canvas-wrap" class="share-img share-canvas-wrap" hidden></div>
+        <div class="row">
+          <button class="btn btn-primary btn-x" data-action="share-x"><svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M18.9 2H22l-6.8 7.8L23 22h-6.2l-4.8-6.3L6.4 22H3.3l7.3-8.3L1 2h6.3l4.4 5.8L18.9 2Zm-1.1 18.2h1.7L6.3 3.7H4.5l13.3 16.5Z"/></svg>Share on X</button>
+          <button class="btn" data-action="share-download">Save Image</button>
+        </div>
+        <p class="share-status" id="share-status"></p>
+      </div>
+    </section>
+
+    <noscript><div class="noscript">EGG RUN needs JavaScript enabled.</div></noscript>
+  </div>
+
+  <!-- core -->
+  <script src="js/core/config.js"></script>
+  <script src="js/core/util.js"></script>
+  <script src="js/core/storage.js"></script>
+  <!-- world & rendering -->
+  <script src="js/world/zones.js"></script>
+  <script src="js/render/camera.js"></script>
+  <script src="js/render/sprites.js"></script>
+  <script src="js/render/character-data.js"></script>
+  <script src="js/render/character.js"></script>
+  <script src="js/render/particles.js"></script>
+  <script src="js/world/world.js"></script>
+  <!-- systems -->
+  <script src="js/systems/audio.js"></script>
+  <script src="js/systems/input.js"></script>
+  <script src="js/systems/leaderboard.js"></script>
+  <script src="js/systems/share.js"></script>
+  <!-- gameplay -->
+  <script src="js/game/entities.js"></script>
+  <script src="js/game/spawner.js"></script>
+  <script src="js/game/player.js"></script>
+  <script src="js/game/collision.js"></script>
+  <script src="js/game/powerups.js"></script>
+  <script src="js/game/scoring.js"></script>
+  <script src="js/game/game.js"></script>
+  <!-- ui & boot -->
+  <script src="js/ui/ui.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
